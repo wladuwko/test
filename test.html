@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TicketShop - Купить билеты онлайн</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+        }
+
+        .header {
+            background: #333;
+            color: white;
+            padding: 1rem;
+            text-align: center;
+        }
+
+        .events-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+            padding: 2rem;
+        }
+
+        .event-card {
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 1rem;
+            text-align: center;
+        }
+
+        .event-image {
+            max-width: 100%;
+            height: 200px;
+            object-fit: cover;
+            border-radius: 4px;
+        }
+
+        .buy-btn {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-top: 1rem;
+        }
+
+        .cart {
+            position: fixed;
+            top: 0;
+            right: 0;
+            background: white;
+            padding: 1rem;
+            border: 1px solid #ddd;
+            width: 300px;
+            height: 100vh;
+            overflow-y: auto;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+        }
+
+        .modal-content {
+            background: white;
+            margin: 15% auto;
+            padding: 2rem;
+            width: 80%;
+            max-width: 500px;
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <h1>TicketShop</h1>
+        <button onclick="toggleCart()">Корзина (<span id="cartCount">0</span>)</button>
+    </header>
+
+    <div class="events-container" id="events"></div>
+
+    <div class="cart" id="cart">
+        <h2>Ваша корзина</h2>
+        <div id="cartItems"></div>
+        <button onclick="checkout()">Оформить заказ</button>
+    </div>
+
+    <div class="modal" id="checkoutModal">
+        <div class="modal-content">
+            <h2>Оформление заказа</h2>
+            <form id="checkoutForm" onsubmit="submitOrder(event)">
+                <input type="text" placeholder="Имя" required>
+                <input type="email" placeholder="Email" required>
+                <input type="tel" placeholder="Телефон" required>
+                <button type="submit">Подтвердить заказ</button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        // Пример данных о событиях
+        const events = [
+            {
+                id: 1,
+                title: "Концерт группы XYZ",
+                date: "15 марта 2024",
+                price: 1500,
+                image: "https://example.com/concert.jpg",
+                tickets: 100
+            },
+            {
+                id: 2,
+                title: "Театральная премьера",
+                date: "20 марта 2024",
+                price: 2000,
+                image: "https://example.com/theater.jpg",
+                tickets: 50
+            }
+        ];
+
+        let cart = JSON.parse(localStorage.getItem('cart')) || [];
+
+        // Инициализация страницы
+        function init() {
+            renderEvents();
+            updateCartCount();
+        }
+
+        // Отображение событий
+        function renderEvents() {
+            const container = document.getElementById('events');
+            container.innerHTML = events.map(event => `<div class="event-card">
+                    <img src="${event.image}" alt="${event.title}" class="event-image">
+                    <h3>${event.title}</h3>
+                    <p>${event.date}</p>
+                    <p>Цена: ${event.price} руб.</p>
+                    <button class="buy-btn" onclick="addToCart(${event.id})">Купить билет</button>
+                </div>
+            ).join('');
+        }
+
+        // Работа с корзиной
+        function addToCart(eventId) {
+            const event = events.find(e => e.id === eventId);
+            const existingItem = cart.find(item => item.eventId === eventId);
+            
+            if (existingItem) {
+                existingItem.quantity++;
+            } else {
+                cart.push({
+                    eventId,
+                    quantity: 1,
+                    ...event
+                });
+            }
+            
+            updateCart();
+            saveCart();
+        }
+
+        function updateCart() {
+            const cartItems = document.getElementById('cartItems');
+            cartItems.innerHTML = cart.map(item => 
+                <div class="cart-item">
+                    <h4>${item.title}</h4>
+                    <p>Количество: 
+                        <button onclick="updateQuantity(${item.eventId}, -1)">-</button>
+                        ${item.quantity}
+                        <button onclick="updateQuantity(${item.eventId}, 1)">+</button>
+                    </p>
+                    <p>Сумма: ${item.quantity * item.price} руб.</p>
+                </div>
+            `).join('');
+            
+            updateCartCount();
+        }
+
+        function updateQuantity(eventId, delta) {
+            const item = cart.find(i => i.eventId === eventId);
+            item.quantity += delta;
+            
+            if (item.quantity <= 0) {
+                cart = cart.filter(i => i.eventId !== eventId);
+            }
+            
+            updateCart();
+            saveCart();
+        }
+
+        function toggleCart() {
+            document.getElementById('cart').classList.toggle('active');
+        }
+
+        function checkout() {
+            document.getElementById('checkoutModal').style.display = 'block';
+        }
+
+        function submitOrder(e) {
+            e.preventDefault();
+            // Здесь должна быть логика обработки заказа
+            alert('Заказ оформлен!');
+            cart = [];
+            saveCart();
+            updateCart();
+            document.getElementById('checkoutModal').style.display = 'none';
+        }
+
+        function saveCart() {
+            localStorage.setItem('cart', JSON.stringify(cart));
+        }
+
+        function updateCartCount() {
+            document.getElementById('cartCount').textContent = 
+                cart.reduce((sum, item) => sum + item.quantity, 0);
+        }
+
+        // Инициализация при загрузке
+        window.onload = init;
+    </script>
+</body>
+</html>
